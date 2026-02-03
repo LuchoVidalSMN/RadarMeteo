@@ -31,6 +31,21 @@
         header { border-bottom: 2px solid #eee; margin-bottom: 20px; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
         .main-layout { display: grid; grid-template-columns: 400px 1fr; gap: 30px; font-size: 1.0rem; }
         
+        /* BLOQUE DE MISIÓN */
+        .mission-box {
+            background: #fff9db;
+            border: 2px solid #fcc419;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            color: #444;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .mission-box h3 { margin: 0 0 10px 0; color: #d9480f; display: flex; align-items: center; gap: 10px; font-size: 1.5rem; }
+        .mission-box p { margin: 0 0 10px 0; font-size: 1.2rem; line-height: 1.4; }
+        .mission-box ul { margin: 0; padding-left: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .mission-box li { font-size: 1.2rem; margin-bottom: 5px; }
+        
         /* Controles */
         .config-box { background: #e8f4fd; padding: 15px; border-radius: 8px; border: 1px solid #3498db; margin-bottom: 20px; }
         .param-group { display: flex; gap: 15px; align-items: center; font-weight: bold; }
@@ -138,6 +153,17 @@
         </div>
         <div style="text-align: right; font-size: 1.3rem;">Resolución: 1 km² | Cuenca: 29 km²</div>
     </header>
+    
+    <div class="mission-box">
+        <h3>🎯 Objetivo: Calibración y Alerta Temprana</h3>
+        <p>Como hidrólogo de turno, tu tarea es ajustar el radar para el evento de lluvia actual en la cuenca del Río Bravo.</p>
+        <ul>
+            <li><b>Objetivo 1:</b> Modifica <b>a</b> y <b>b</b> hasta que el Factor <b>MFB</b> sea lo más cercano posible a 1.0 (Calibración Óptima).</li>
+            <li><b>Objetivo 2:</b> Compara el mapa original con el calibrado. ¿Dónde se concentra el error de subestimación?</li>
+            <li><b>Objetivo 3:</b> Analiza el Hidrograma. Si la línea roja sube por encima del 70% de la escala, emite un aviso de crecida.</li>
+            <li><b>Objetivo 4:</b> Determina si un error en el parámetro <b>b</b> es más crítico para la cuenca que un error en <b>a</b>.</li>
+        </ul>
+    </div>
 
     <div class="main-layout">
         <div>
