@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulador QPE</title>
+    <style>
+    
+        :root {
+            /* Colores Oficiales NOAA para QPE */
+            --noaa-lt-blue: #01A0F6;
+            --noaa-dk-blue: #0000F6;
+            --noaa-lt-green: #00FF00;
+            --noaa-dk-green: #00C800;
+            --noaa-yellow: #FFFF00;
+            --noaa-orange: #FF9000;
+            --noaa-red: #FF0000;
+            /* Color del Río estilo SIG */
+            --river-color: #3498db; 
+        }
+        
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f3f7; padding: 20px; font-size: 13px; color: #2d3436; }
+        .container { max-width: 1350px;
+                     margin: auto; 
+                     background: white; 
+                     padding: 25px 40px; 
+                     border-radius: 12px; 
+                     box-shadow: 0 5px 25px rgba(0,0,0,0.1); 
+                     border-top: 8px solid #003366; 
+                   }
+        
+        header { border-bottom: 2px solid #eee; margin-bottom: 20px; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .main-layout { display: grid; grid-template-columns: 400px 1fr; gap: 30px; font-size: 1.0rem; }
+        
+        /* Controles */
+        .config-box { background: #e8f4fd; padding: 15px; border-radius: 8px; border: 1px solid #3498db; margin-bottom: 20px; }
+        .param-group { display: flex; gap: 15px; align-items: center; font-weight: bold; }
+        .param-group input { width: 70px; padding: 6px; border: 2px solid #3498db; border-radius: 4px; text-align: center; }
+
+        /* Diagnóstico Inteligente */
+        .diag-box { background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; border-left: 6px solid #ffc107; margin-top: 15px; min-height: 80px; }
+        .diag-title { font-weight: bold; font-size: 1.25rem; margin-bottom: 5px; display: flex; align-items: center; }
+
+        /* Tablas */
+        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        th, td { border: 1px solid #ccc; padding: 6px; text-align: center; font-size: 1.1rem; }
+        th { background: #003366; color: white; font-size: 1.0rem; }
+        .val-r { color: #0984e3; font-weight: bold; font-size: 1.1rem; }
+        .val-g { color: #d63031; font-weight: bold; font-size: 1.1rem; }
+
+        /* Panel PMA */
+        .pma-panel { background: #1e272e; color: white; padding: 15px; border-radius: 8px; margin-top: 15px; font-size: 1.2rem}
+        .pma-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #3d4e5e; padding-bottom: 5px; }
+        .pma-val { font-family: 'Courier New', monospace; font-size: 1.2rem; font-weight: bold; color: #00d2ff; }
+        
+        /* SECCIÓN DE MAPAS CORREGIDA */
+        .map-section { display: grid; grid-template-columns: 1fr 1fr 100px; gap: 20px; align-items: stretch; }
+        .map-box { background: #1a1a1a; padding: 15px; border-radius: 6px; display: flex; flex-direction: column; position: relative; min-width: 0; }
+        .map-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 1px; flex-grow: 1; z-index: 1; }
+        .pixel { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 1.0rem; font-weight: bold; color: black; }
+        .in-basin { border: 1px solid rgba(255,255,255,0.4); }
+        .out-basin { opacity: 0.15; filter: grayscale(1); }
+        .label { color: #eee; font-size: 1.1rem; text-align: center; margin-bottom: 12px; font-weight: bold; height: 1.2rem; }
+        
+        /* Contenedor de mapas con Grid para asegurar simetría 1:1 */
+        .maps-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-grow: 1; }
+        .map-box { background: #1a1a1a; padding: 15px; border-radius: 6px; display: flex; flex-direction: column; position: relative; min-width: 0; }
+        .map-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 1px; flex-grow: 1; z-index: 1; }
+        .pixel { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 1.0rem; font-weight: bold; color: black; }
+        
+        /* Capa del Río Realista (SVG) */
+        .river-layer {
+                      position: absolute;
+                      /* Ajuste fino para que calce exactamente sobre la grilla de 8x8 */
+                      top: calc(15px + 1.1rem + 12px); 
+                      left: 15px;
+                      width: calc(100% - 30px);
+                      /* Se ajusta la altura restando padding superior y un estimado del inferior */
+                      height: calc(100% - 45px); 
+                      pointer-events: none; /* Permite clicks a través del río */
+                      z-index: 10; /* Por encima de los píxeles */
+                      opacity: 0.9; /* Ligera transparencia para ver los datos debajo */
+                     }
+        
+        .in-basin { border: 1px solid rgba(255,255,255,0.4); }
+        .out-basin { opacity: 0.15; filter: grayscale(1); }
+        .label { color: #eee; font-size: 1.1rem; text-align: center; margin-bottom: 12px; font-weight: bold; }
+        
+        /* LEYENDA PROFESIONAL */
+        .legend-container { display: flex; flex-direction: column; width: 120px; padding: 15px 0; }
+        .legend-unit { 
+                      font-size: 12px; 
+                      font-weight: bold; 
+                      color: #666;
+                      height: 1.1rem;     /* Misma altura que el font-size de .label */
+                      margin-bottom: 12px; /* Mismo margen que .label */
+                      text-align: center;
+                      padding-right: 30px; /* Alinea con la barra */
+                     }
+        .color-bar { 
+                    display: flex; 
+                    flex-direction: column-reverse; 
+                    width: 25px; 
+                    flex-grow: 1;       /* Hace que la barra crezca dinámicamente con los mapas */
+                    border: 1px solid #333;
+                    margin-left: 10px;  /* Centra un poco la barra */
+                   }
+        .legend-item { 
+                      flex: 1; 
+                      position: relative; 
+                      width: 100%; 
+                     }
+        .legend-label { 
+                        position: absolute; 
+                        left: 35px;         /* Espacio desde la barra al número */
+                        bottom: -8px; 
+                        font-size: 14px; 
+                        font-weight: bold; 
+                        color: #444; 
+                        white-space: nowrap; /* Evita que el texto se amontone */
+                      }
+        .chart-box { background: white; border: 1px solid #ddd; padding: 5px; margin-top: 5px; border-radius: 2px; }
+        .hydro-svg { width: 100%; height: 255px; }
+        
+        /* Barra de Colores (Leyenda) */
+        .color-bar { display: grid; width: 15px; height: 350px; border: 0px solid #333; margin-top: 5px; }
+        .legend-item { flex: 1; position: relative; border-bottom: 1px solid rgba(0,0,0,0.1); }
+        .legend-label { position: absolute; left: 25px; bottom: -10px; font-size: 17px; font-weight: bold; color: #444; white-space: nowrap; }
+        
+    </style>
+</head>
+<body>
+
+<div class="container">
+     <header>
+        <div>
+            <h1 style="margin:0; font-size: 2.5rem; color: #003366;">📡 Simulador Hidrometeorológico</h1>
+            <small style="color:#636e72; font-size: 1.5rem">Precipitación Media Areal y respuesta de una cuenca</small>
+        </div>
+        <div style="text-align: right; font-size: 1.3rem;">Resolución: 1 km² | Cuenca: 29 km²</div>
+    </header>
+
+    <div class="main-layout">
+        <div>
+        
+            <div class="config-box">
+                <h3 style="margin:0; font-size: 1.5rem; color: #003366;"> Relacion Z = aR<sup>b</sup></h3>
+                <div class="param-group">
+                    <div style="text-align: right; font-size: 1.2rem;"> a: <input type="number" id="coeffA" value="200" oninput="mainUpdate('a')" style="font-size: 1rem"></div>
+                    <div style="text-align: right; font-size: 1.2rem;"> b: <input type="number" id="coeffB" value="1.6" step="0.1" oninput="mainUpdate('b')" style="font-size: 1rem" ></div>
+                </div>
+            </div>
+            <p style="font-size: 0.9rem; color: #666; margin-top: 10px;">
+                    <i>Estratiforme: 200/1.6 | Convectiva: 300/1.4 | Tropical: 250/1.2</i>
+                </p>
+
+            <div id="diag" class="diag-box">
+                <div class="diag-title">🔍 Diagnóstico de calibración</div>
+                <div id="diag-text">Inicie el simulador cambiando los parámetros <b>a</b> o <b>b</b>.</div>
+            </div>
+
+            <h3 style="margin-top:20px; font-size: 1.2rem;">Calibracion con pluviómetros</h3>
+            <table>
+                <thead>
+                    <tr><th>Est.</th><th>Z [dBZ]</th><th>Radar R [mm]</th><th>Pluv G [mm]</th></tr>
+                </thead>
+                <tbody id="stn-table"></tbody>
+                <tfoot>
+                    <tr style="background:#f1f2f6; font-weight:bold;">
+                        <td colspan="2">TOTALES</td>
+                        <td id="sumR" class="val-r">0.0</td>
+                        <td class="val-g">100.0</td>
+                    </tr>
+                    <tr style="background:#e8f4fd;">
+                        <td colspan="3" style="text-align:right; font-size: 1.2rem;">Factor de calibración MFB</td>
+                        <td id="autoB" style="color:#003366; font-weight:bold; font-size: 1.2rem;">1.00</td>
+                    </tr>
+                </tfoot>
+            </table>
+           
+            <div class="pma-panel">
+                <div class="pma-row"><span>PMA original ............................. </span><span id="pma-orig" class="pma-val">---</span></div>
+                <div class="pma-row"><span>PMA calibrada .......................... </span><span id="pma-final" class="pma-val" style="color:#55efc4;">---</span></div>
+                <div id="alert-msg" style="text-align:center; color:#ff7675; font-weight:bold; visibility:hidden; font-size:1.1rem;">
+                    ⚠️ ALERTA: Pico de crecida crítico detectado
+                </div>
+            </div>
+            
+        </div>
+
+        <div>
+            <div class="map-section">
+            
+                <div class="map-box">
+                    <div class="label" style="text-align:center; font-weight:bold; font-size:1.2rem; margin-bottom:10px;"> Estimacion original [mm]</div>
+                    <div id="grid-radar" class="map-grid"></div>
+                    <svg class="river-layer" viewBox="0 0 8 8" preserveAspectRatio="none">
+                         <defs>
+                            <style>
+                                .river-main { fill:none; stroke:var(--river-color); stroke-width:0.22; stroke-linecap:round; stroke-linejoin:round; }
+                                .river-trib { fill:none; stroke:var(--river-color); stroke-width:0.14; stroke-linecap:round; }
+                                .river-head { fill:none; stroke:var(--river-color); stroke-width:0.08; stroke-linecap:round; }
+                            </style>
+                        </defs>
+                        <path class="river-main" d="M 1.5 1.2 C 2.5 2.5, 3.5 3.5, 4.8 4.8 C 5.5 5.5, 6.2 6.8, 6.8 7.5" />
+                        <path class="river-trib" d="M 4.5 0.5 Q 5 2, 4.8 4.8" />
+                        <path class="river-head" d="M 0.5 3.2 Q 1.5 3.5, 2.8 2.8" />
+                        <path class="river-head" d="M 7.2 3.5 Q 6.5 4.5, 5.8 5.8" />
+                    </svg>
+                </div>
+                
+                <div class="map-box">
+                    <div class="label" style="text-align:center; font-weight:bold; font-size:1.2rem; margin-bottom:10px;"> Estimacion calibrada [mm]</div>
+                    <div id="grid-calib" class="map-grid"></div>
+                    <svg class="river-layer" viewBox="0 0 8 8" preserveAspectRatio="none">
+                         <defs>
+                            <style>
+                                .river-main { fill:none; stroke:var(--river-color); stroke-width:0.22; stroke-linecap:round; stroke-linejoin:round; }
+                                .river-trib { fill:none; stroke:var(--river-color); stroke-width:0.14; stroke-linecap:round; }
+                                .river-head { fill:none; stroke:var(--river-color); stroke-width:0.08; stroke-linecap:round; }
+                            </style>
+                        </defs>
+                        <path class="river-main" d="M 1.5 1.2 C 2.5 2.5, 3.5 3.5, 4.8 4.8 C 5.5 5.5, 6.2 6.8, 6.8 7.5" />
+                        <path class="river-trib" d="M 4.5 0.5 Q 5 2, 4.8 4.8" />
+                        <path class="river-head" d="M 0.5 3.2 Q 1.5 3.5, 2.8 2.8" />
+                        <path class="river-head" d="M 7.2 3.5 Q 6.5 4.5, 5.8 5.8" />
+                    </svg>
+                </div>
+                
+                <div style="display:grid; flex-direction:column; align-items:center;">
+                    <div class="color-bar">
+                        <div class="legend-item" style="background:var(--noaa-lt-blue);"><span class="legend-label">1</span></div>
+                        <div class="legend-item" style="background:var(--noaa-dk-blue);"><span class="legend-label">5</span></div>
+                        <div class="legend-item" style="background:var(--noaa-lt-green);"><span class="legend-label">10</span></div>
+                        <div class="legend-item" style="background:var(--noaa-dk-green);"><span class="legend-label">15</span></div>
+                        <div class="legend-item" style="background:var(--noaa-yellow);"><span class="legend-label">20</span></div>
+                        <div class="legend-item" style="background:var(--noaa-orange);"><span class="legend-label">30</span></div>
+                        <div class="legend-item" style="background:var(--noaa-red);"><span class="legend-label">40+</span></div>
+                    </div>
+                </div>
+                
+            </div>
+
+            <div class="chart-box">
+                <div style="text-align:center; font-weight:bold; font-size:1.5rem; margin-top:10px;">Respuesta del caudal (Hidrograma)</div>
+                <svg viewBox="0 0 400 100" class="hydro-svg">
+                    <line x1="30" y1="100" x2="350" y2="100" stroke="#333" stroke-width="1"/>
+                    <line x1="30" y1="100" x2="30" y2="10" stroke="#333" stroke-width="1"/>
+                    <path id="hydro-ref" d="M 30 100 Q 120 40 280 100" fill="none" stroke="#ccc" stroke-width="2" stroke-dasharray="4"/>
+                    <path id="hydro-curve" d="M 30 100 Q 120 40 280 100" fill="none" stroke="#d63031" stroke-width="2.5"/>
+                    <text x="310" y="95" font-size="10">tiempo</text>
+                    <text x="-20" y="13" font-size="10" transform="rotate(-90 29,18)">Q (m³/s)</text>
+                </svg>
+                <div style="display:flex; justify-content:center; gap:20px; font-size:1.2rem; margin-top:8px;">
+                    <span><span style="color:#b2bec3">---</span> Sin calibrar</span>
+                    <span><span style="color:#d63031">━━</span> Calibrado</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const dbzStns = [39.0, 43.8, 41.8, 34.1, 40.3, 43.0];
+    const gVals = [12.0, 26.0, 16.0, 6.0, 15.0, 25.0];
+    const dbzGrid = [
+        30,32,36,40,41,36,32,30, 32,39,42,46,47,43,39,32, 36,42,48,51,50,44,42,36, 39,45,51,56,54,48,45,39,
+        36,42,48,51,50,44,42,36, 32,39,44,46,45,41,39,32, 30,33,39,40,39,36,33,30, 25,28,32,34,32,30,28,25
+    ];
+    const basin = [
+        0,0,1,1,1,0,0,0, 0,1,1,1,1,1,0,0, 0,1,1,1,1,1,1,0, 1,1,1,1,1,1,1,1,
+        0,1,1,1,1,1,1,0, 0,0,1,1,1,1,0,0, 0,0,0,1,1,0,0,0, 0,0,0,0,0,0,0,0
+    ];
+
+    function getNOAA(v) {
+        if (v < 5) return '#01A0F6'; if (v < 10) return '#0000F6';
+        if (v < 15) return '#00FF00'; if (v < 20) return '#00C800';
+        if (v < 30) return '#FFFF00'; if (v < 40) return '#FF9000';
+        return '#FF0000';
+    }
+
+    function mainUpdate(changedParam) {
+        const a = parseFloat(document.getElementById('coeffA').value);
+        const b = parseFloat(document.getElementById('coeffB').value);
+        if(!a || !b) return;
+
+        // 1. Diagnóstico Inteligente
+        const diagText = document.getElementById('diag-text');
+        if (changedParam === 'a') {
+            diagText.innerHTML = "Observa: Al cambiar <b>a</b>, el mapa original cambia pero el calibrado <b>no se mueve</b>. Esto es porque el factor <b>MFB</b> absorbe y cancela el error de escala lineal. ¡La calibración es robusta ante errores en 'a'!";
+        } else if (changedParam === 'b') {
+            diagText.innerHTML = "Observa: Al cambiar <b>b</b>, el mapa calibrado <b>SÍ cambia</b>. Esto es porque 'b' es un exponente que altera la estructura no lineal de la lluvia. El factor B no puede corregir este cambio de forma.";
+        }
+
+        // 2. Tabla y Factor B
+        const tb = document.getElementById('stn-table');
+        tb.innerHTML = '';
+        let sumR = 0;
+        dbzStns.forEach((z, i) => {
+            const r = Math.pow(Math.pow(10, z/10)/a, 1/b);
+            sumR += r;
+            const row = document.createElement('tr');
+            row.innerHTML = `<td>Est-${i+1}</td><td>${z}</td><td class="val-r">${r.toFixed(1)}</td><td class="val-g">${gVals[i].toFixed(1)}</td>`;
+            tb.appendChild(row);
+        });
+        document.getElementById('sumR').innerText = sumR.toFixed(1);
+        const B = (100 / sumR);
+        document.getElementById('autoB').innerText = B.toFixed(2);
+
+        // 3. Mapas y PMA
+        const gRad = document.getElementById('grid-radar');
+        const gCal = document.getElementById('grid-calib');
+        gRad.innerHTML = ''; gCal.innerHTML = '';
+        let pmaSum = 0, count = 0;
+
+        dbzGrid.forEach((z, i) => {
+            const r = Math.pow(Math.pow(10, z/10)/a, 1/b);
+            const inB = basin[i] === 1;
+            if(inB) { pmaSum += r; count++; }
+            [{target:gRad, v:r}, {target:gCal, v:r*B}].forEach(m => {
+                const p = document.createElement('div');
+                p.className = 'pixel ' + (inB ? 'in-basin' : 'out-basin');
+                p.style.backgroundColor = getNOAA(m.v);
+                p.innerText = Math.round(m.v);
+                m.target.appendChild(p);
+            });
+        });
+
+        const pmaRadar = pmaSum / count;
+        const pmaFinal = pmaRadar * B;
+        document.getElementById('pma-orig').innerText = pmaRadar.toFixed(1) + " mm";
+        document.getElementById('pma-final').innerText = pmaFinal.toFixed(1) + " mm";
+
+        // 4. Hidrograma Dinámico Proporcional
+        const curve = document.getElementById('hydro-curve');
+        const ref = document.getElementById('hydro-ref');
+
+        // Usamos 100 como base (fondo del gráfico) y restamos la PMA multiplicada por un factor de escala
+        const peakH = 100 - (pmaFinal * 2.5); 
+        const refH = 100 - (pmaRadar * 2.5);
+
+        // Actualizamos ambas curvas
+        curve.setAttribute('d', `M 30 100 Q 120 ${peakH} 280 100`);
+        ref.setAttribute('d', `M 30 100 Q 120 ${refH} 280 100`);
+
+        // Alerta: Se activa si hay una subestimación importante (B > 1.1)
+        document.getElementById('alert-msg').style.visibility = (B > 1.1) ? 'visible' : 'hidden';
+        
+        
+    }
+
+    window.onload = () => mainUpdate(null);
+</script>
+</body>
+</html>
